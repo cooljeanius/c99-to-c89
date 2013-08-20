@@ -30,6 +30,9 @@
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
+/* Define to 1 if you have the `c' library (-lc). */
+#undef HAVE_LIBC
+
 /* Define to 1 if you have the `clang' library (-lclang). */
 #undef HAVE_LIBCLANG
 

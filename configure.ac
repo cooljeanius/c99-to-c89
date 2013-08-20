@@ -8,7 +8,7 @@ AC_CONFIG_HEADER([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET
 AC_USE_SYSTEM_EXTENSIONS
-AM_INIT_AUTOMAKE([1.7 foreign -Wall])
+AM_INIT_AUTOMAKE([1.7 dejagnu dist-zip foreign -Wall])
 AM_MAINTAINER_MODE
 AC_OBJEXT
 AC_EXEEXT
@@ -23,6 +23,7 @@ EBG_PROG_CLANG([3.1])
 AX_LLVM([Core]) dnl#TODO: figure out how to use this macro properly
 
 # Checks for libraries.
+AC_CHECK_LIB([c],[printf])
 # FIXME: Replace `main' with a function in `-lclang':
 AC_CHECK_LIB([clang],[main])
 
