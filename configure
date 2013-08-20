@@ -5502,7 +5502,6 @@ $as_echo "#define HAVE_LLVM 1" >>confdefs.h
 
 		fi
 
-
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lclang':
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lclang" >&5

@@ -1,10 +1,14 @@
+*DS_Store*
 *.cache
 *.log
 *.status
 *(Autosaved)*
 *stamp-h*
+confdefs.h
 config.h
+conftest.*
 c99conv
 c99wrap
 *.o
 Makefile
+*.exe

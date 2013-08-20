@@ -20,7 +20,7 @@ AM_PROG_CC_STDC
 AC_PROG_GCC_TRADITIONAL
 AX_CHECK_GNU_MAKE
 EBG_PROG_CLANG([3.1])
-AX_LLVM([Core]) #TODO: figure out how to use this macro properly
+AX_LLVM([Core]) dnl#TODO: figure out how to use this macro properly
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lclang':
