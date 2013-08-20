@@ -1,0 +1,10 @@
+*.cache
+*.log
+*.status
+*(Autosaved)*
+*stamp-h*
+config.h
+c99conv
+c99wrap
+*.o
+Makefile
