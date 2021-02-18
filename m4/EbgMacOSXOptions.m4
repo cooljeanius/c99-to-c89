@@ -31,9 +31,14 @@ dnl# EBG_PROG_CLANG([version-requested])
 AC_DEFUN([EBG_PROG_CLANG],
 [
 AC_PATH_PROG([CLANG],[clang])
+AC_ARG_VAR([CLANG],[Path to clang])
   if test "x$CLANG" != "x"; then
     AC_MSG_CHECKING([for clang version])
-    CLANG_VERSION=`clang --version | head -n 1 | cut -d\  -f3`
+    if test -n "`clang --version | grep Apple`"; then
+      CLANG_VERSION=`clang --version | head -n 1 | cut -d\  -f4`
+    else
+      CLANG_VERSION=`clang --version | head -n 1 | cut -d\  -f3`
+    fi
     AC_MSG_RESULT([$CLANG_VERSION])
     if test "x$1" = "x"; then
       AC_MSG_WARN([no version requested])

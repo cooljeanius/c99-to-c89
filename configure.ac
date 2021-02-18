@@ -4,8 +4,9 @@ dnl# Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.69])
 AC_INIT([c99-to-c89],[GH],[/dev/null])
 AC_CONFIG_SRCDIR([compilewrap.c])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([build-aux])
 AC_CANONICAL_TARGET
 AC_USE_SYSTEM_EXTENSIONS
 AM_INIT_AUTOMAKE([1.7 dejagnu dist-zip foreign -Wall])
@@ -25,11 +26,11 @@ AX_LLVM([Core]) dnl#TODO: figure out how to use this macro properly
 # Checks for libraries.
 AC_CHECK_LIB([c],[printf])
 # FIXME: Replace `main' with a function in `-lclang':
-AC_CHECK_LIB([clang],[main])
+AC_CHECK_LIB([clang],[main])dnl
 
 # Checks for header files.
 AC_CHECK_HEADERS([assert.h clang-c/Index.h ctype.h malloc.h \
-                  stdarg.h stdio.h])
+                  stdarg.h stdio.h])dnl
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -44,7 +45,8 @@ AC_FUNC_MEMCMP
 AC_FUNC_REALLOC
 AC_FUNC_STRTOD
 AC_CHECK_FUNCS([dprintf fopen fclose fprintf free isascii memmove memset \
-                strcmp strcpy strdup strrchr strtol])
+                strcmp strcpy strdup strrchr strtol])dnl
 
+# Output.
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
