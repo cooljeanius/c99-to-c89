@@ -24,6 +24,10 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#ifdef _MSC_VER
+#define strtoll _strtoi64
+#endif
+
 /*
  * The basic idea of the token parser is to "stack" ordered tokens
  * (i.e. ordering is done by libclang) in such a way that we can
@@ -556,7 +560,9 @@ static enum CXChildVisitResult fill_enum_value(CXCursor cursor,
         tsp = clang_getTokenSpelling(TU, tokens[0]);
         str = clang_getCString(tsp);
         cache->n[++cache->n[0]] = strtol(str, &end, 0);
-        assert(end - str == strlen(str));
+        assert(end - str == strlen(str) ||
+               (end - str == strlen(str) - 1 && // str may have a suffix like 'U' that strtol doesn't consume
+                (*end == 'U' || *end == 'u')));
         clang_disposeString(tsp);
         break;
     }
@@ -1234,7 +1240,7 @@ static char *find_variable_name(CursorRecursion *rec)
 }
 
 static int index_is_unique(StructArrayList *l, int idx) {
-  int n;
+  unsigned n;
 
   for (n = 0; n < l->n_entries; n++) {
     if (l->entries[n].index == idx)
@@ -1731,8 +1737,29 @@ static double eval_prim(CXToken *tokens, unsigned *n, unsigned last)
         double d;
         (*n)++;
         clang_disposeString(s);
+        if (*n + 1 <= last) {
+            CXString s2;
+            const char *str2;
+            s = clang_getTokenSpelling(TU, tokens[*n]);
+            str = clang_getCString(s);
+            s2 = clang_getTokenSpelling(TU, tokens[*n + 1]);
+            str2 = clang_getCString(s2);
+            // This should ideally recognize all built-in types
+            // and also check the type name against all typedefs
+            // (it also doesn't support two word typnames such as structs.
+            // This is enough for handling double casts in DBL_MAX in
+            // certain glibc versions though.
+            if (!strcmp(str2, ")") && !strcmp(str, "double")) {
+                clang_disposeString(s);
+                clang_disposeString(s2);
+                (*n) += 2;
+                return eval_prim(tokens, n, last);
+            }
+            clang_disposeString(s);
+            clang_disposeString(s2);
+        }
         d = eval_expr(tokens, n, last);
-        if (*n >= last) {
+        if (*n > last) {
             fprintf(stderr, "No right parenthesis found\n");
             exit(1);
         }
@@ -1748,9 +1775,17 @@ static double eval_prim(CXToken *tokens, unsigned *n, unsigned last)
         return d;
     } else {
         char *end;
-        double d = strtod(str, &end);
+        double d;
+        if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
+            d = strtoll(str, &end, 16);
+        } else {
+            d = strtod(str, &end);
+        }
         // Handle a possible f suffix for float constants
         if (end != str && (*end == 'f' || *end == 'F'))
+            end++;
+        // Handle a possible l suffix for int constants
+        while (end != str && (*end == 'l' || *end == 'L'))
             end++;
         if (*end != '\0') {
             fprintf(stderr, "Unable to parse %s as expression primary\n", str);
@@ -1993,7 +2028,7 @@ static void replace_comp_literal(CompoundLiteralList *l,
         (*clidx)++;
     } else if (l->type == TYPE_TEMP_ASSIGN) {
         if (l->context.start < l->cast_token.start) {
-            unsigned n, idx1, idx2, off;
+            unsigned off;
             char tmp[256];
 
             // open a new context, so we can declare a new variable
@@ -2028,6 +2063,28 @@ static void replace_comp_literal(CompoundLiteralList *l,
         } else {
             print_token(tokens[*_n], lnum, cpos);
 
+            {
+                // Bugfix. Consider preprocessor directives, don't insert closing }
+                // at the end of the line if it doesn't end with ";" or "}".
+                unsigned tok_lnum = *lnum;
+                unsigned tok_pos = *cpos;
+                unsigned off;
+                get_token_position(tokens[*_n + 1], &tok_lnum, &tok_pos, &off);
+                if (tok_lnum > *lnum)
+                {
+                    // Get previous token spelling.
+                    CXString s = clang_getTokenSpelling(TU, tokens[*_n]);
+                    const char * spelling = clang_getCString(s);
+                    if (strcmp(spelling, ";") && strcmp(spelling, "}"))
+                    {
+                        print_literal_text("\n", lnum, cpos);
+                        (*lnum)++;
+                        *cpos = 0;
+                    }
+                    clang_disposeString(s);
+                }
+            }
+
             // multiple contexts may want to close here - close all at once
             do {
                 print_literal_text(" }", lnum, cpos);
@@ -2037,7 +2094,7 @@ static void replace_comp_literal(CompoundLiteralList *l,
         }
     } else if (l->type == TYPE_CONST_DECL) {
         if (l->context.start < l->cast_token.start) {
-            unsigned idx1, idx2, n, off;
+            unsigned off;
             char tmp[256];
 
             // declare static const variable
@@ -2110,12 +2167,12 @@ static void replace_comp_literal(CompoundLiteralList *l,
             // remove variable declaration/init, remove ',' if present
             l->context.start = l->context.end;
             l->type = TYPE_TEMP_ASSIGN;
-            reorder_compound_literal_list(l - comp_literal_lists);
             (*_n)--;
             do {
                 (*_n)++;
                 get_token_position(tokens[*_n], lnum, cpos, &off);
             } while (off < l->cast_token.end);
+            reorder_compound_literal_list(l - comp_literal_lists);
         }
     }
 }
@@ -2346,7 +2403,7 @@ static void print_token_wrapper(CXToken *tokens, unsigned n_tokens,
     }
 
     while (*esidx < n_end_scopes && off >= end_scopes[*esidx].end - 1) {
-        unsigned i;
+        int i;
         for (i = 0; i < end_scopes[*esidx].n_scopes; i++)
             print_literal_text("}", lnum, cpos);
         (*cpos) -= end_scopes[*esidx].n_scopes;
@@ -2433,7 +2490,7 @@ static void cleanup(void)
                         typedefs[n].struct_decl_idx);
             }
         } else if (typedefs[n].enum_decl_idx != (unsigned) -1) {
-            if (structs[typedefs[n].enum_decl_idx].name[0]) {
+            if (enums[typedefs[n].enum_decl_idx].name[0]) {
                 dprintf("[%d]: %s (enum %s = %d)\n",
                         n, typedefs[n].name,
                         enums[typedefs[n].enum_decl_idx].name,

@@ -20,4 +20,7 @@ Example:
 
 Binaries
 ========
-http://download.videolan.org/pub/contrib/c99-to-c89/
+
+Head over to the [releases](https://github.com/libav/c99-to-c89/releases) page for
+the latest binaries. Alternatively, VideoLAN provides a mirror
+[here](http://download.videolan.org/pub/contrib/c99-to-c89/).
