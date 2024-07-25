@@ -1,4 +1,4 @@
-/*
+/* convert.c
  * C99-to-MSVC-compatible-C89 syntax converter
  * Copyright (c) 2012 Ronald S. Bultje <rsbultje@gmail.com>
  * Copyright (c) 2012 Derek Buitenhuis <derek.buitenhuis@gmail.com>
@@ -23,10 +23,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <stdint.h>
 
 #ifdef _MSC_VER
-#define strtoll _strtoi64
-#endif
+# define strtoll _strtoi64
+#endif /* _MSC_VER */
 
 /*
  * The basic idea of the token parser is to "stack" ordered tokens
@@ -99,10 +100,10 @@
 
 typedef struct {
     char *type;
-    unsigned struct_decl_idx;
+    unsigned int struct_decl_idx;
     char *name;
-    unsigned n_ptrs; // 0 if not a pointer
-    unsigned array_depth; // 0 if no array
+    unsigned int n_ptrs; // 0 if not a pointer
+    unsigned int array_depth; // 0 if no array
     CXCursor cursor;
 } StructMember;
 
@@ -115,8 +116,8 @@ typedef struct {
     int is_union;
 } StructDeclaration;
 static StructDeclaration *structs = NULL;
-static unsigned n_structs = 0;
-static unsigned n_allocated_structs = 0;
+static unsigned int n_structs = 0U;
+static unsigned int n_allocated_structs = 0U;
 
 typedef struct {
     char *name;
@@ -126,28 +127,28 @@ typedef struct {
 
 typedef struct {
     EnumMember *entries;
-    unsigned n_entries;
-    unsigned n_allocated_entries;
+    unsigned int n_entries;
+    unsigned int n_allocated_entries;
     char *name;
     CXCursor cursor;
 } EnumDeclaration;
 static EnumDeclaration *enums = NULL;
-static unsigned n_enums = 0;
-static unsigned n_allocated_enums = 0;
+static unsigned int n_enums = 0U;
+static unsigned int n_allocated_enums = 0U;
 
-/* FIXME we're not taking pointers or array sizes into account here,
- * in large part because Libav doesn't use those in combination with
+/* FIXME: we are not taking pointers or array sizes into account here,
+ * in large part because Libav avoids using those in combination with
  * typedefs. */
 typedef struct {
     char *proxy;
     char *name;
-    unsigned struct_decl_idx;
-    unsigned enum_decl_idx;
+    unsigned int struct_decl_idx;
+    unsigned int enum_decl_idx;
     CXCursor cursor;
 } TypedefDeclaration;
 static TypedefDeclaration *typedefs = NULL;
-static unsigned n_typedefs = 0;
-static unsigned n_allocated_typedefs = 0;
+static unsigned int n_typedefs = 0U;
+static unsigned int n_allocated_typedefs = 0U;
 
 enum StructArrayType {
     TYPE_IRRELEVANT = 0,
@@ -155,9 +156,9 @@ enum StructArrayType {
     TYPE_ARRAY      = 2,
 };
 typedef struct {
-    unsigned index;
+    unsigned int index;
     struct {
-        unsigned start, end;
+        unsigned int start, end;
     } value_offset, expression_offset;
 } StructArrayItem;
 
@@ -196,12 +197,13 @@ static CXTranslationUnit TU;
     if (DEBUG) \
         printf(__VA_ARGS__)
 
-static unsigned find_token_index(CXToken *tokens, unsigned n_tokens,
-                                 const char *str)
+/* */
+static unsigned int find_token_index(CXToken *tokens, unsigned int n_tokens,
+                                     const char *str)
 {
-    unsigned n;
+    unsigned int n;
 
-    for (n = n_tokens - 1; n != (unsigned) -1; n--) {
+    for (n = n_tokens - 1; n != (unsigned int)-1; n--) {
         CXString tstr = clang_getTokenSpelling(TU, tokens[n]);
         const char *cstr = clang_getCString(tstr);
         int res = strcmp(str, cstr);
@@ -214,7 +216,8 @@ static unsigned find_token_index(CXToken *tokens, unsigned n_tokens,
     exit(1);
 }
 
-static char *concat_name(CXToken *tokens, unsigned int from, unsigned to)
+/* */
+static char *concat_name(CXToken *tokens, unsigned int from, unsigned int to)
 {
     unsigned int cnt = 0, n;
     char *str;
@@ -255,6 +258,7 @@ static void register_enum(const char *str, CXCursor cursor,
                           TypedefDeclaration *decl_ptr);
 static unsigned find_struct_decl_idx_for_type_name(const char *name);
 
+/* */
 static enum CXChildVisitResult find_anon_struct(CXCursor cursor,
                                                 CXCursor parent,
                                                 CXClientData client_data)
@@ -286,11 +290,12 @@ static enum CXChildVisitResult find_anon_struct(CXCursor cursor,
     return CXChildVisit_Continue;
 }
 
+/* */
 static enum CXChildVisitResult fill_struct_members(CXCursor cursor,
                                                    CXCursor parent,
                                                    CXClientData client_data)
 {
-    unsigned decl_idx = (unsigned) client_data;
+    unsigned int decl_idx = (unsigned int)(uintptr_t)client_data;
     StructDeclaration *decl = &structs[decl_idx];
     CXString cstr = clang_getCursorSpelling(cursor);
     const char *str = clang_getCString(cstr);
@@ -344,7 +349,7 @@ static enum CXChildVisitResult fill_struct_members(CXCursor cursor,
         }
 
         for (;;) {
-            unsigned im1 = idx - 1 - decl->entries[n].n_ptrs;
+            unsigned int im1 = idx - 1 - decl->entries[n].n_ptrs;
             CXString tstr = clang_getTokenSpelling(TU, tokens[im1]);
             const char *cstr = clang_getCString(tstr);
             int res = strcmp(cstr, "*");
@@ -357,7 +362,7 @@ static enum CXChildVisitResult fill_struct_members(CXCursor cursor,
         }
 
         do {
-            unsigned im1 = idx - 1 - decl->entries[n].n_ptrs;
+            unsigned int im1 = idx - 1 - decl->entries[n].n_ptrs;
             CXString tstr = clang_getTokenSpelling(TU, tokens[im1]);
             const char *cstr = clang_getCString(tstr);
             if (!strcmp(cstr, ",")) {
@@ -373,7 +378,7 @@ static enum CXChildVisitResult fill_struct_members(CXCursor cursor,
         clang_visitChildren(cursor, find_anon_struct, &td);
         decl->entries[n].struct_decl_idx = td.struct_decl_idx;
 
-        // FIXME it's not hard to find the struct name (either because
+        // FIXME: it is not hard to find the struct name (either because
         // tokens[idx-2-n_ptrs] == 'struct', or because tokens[idx-1-n_ptrs]
         // is a typedef for the struct name), and then we can use
         // find_struct_decl() to find the StructDeclaration belonging to
@@ -400,10 +405,11 @@ static enum CXChildVisitResult fill_struct_members(CXCursor cursor,
     return CXChildVisit_Continue;
 }
 
+/* */
 static void register_struct(const char *str, CXCursor cursor,
                             TypedefDeclaration *decl_ptr, int is_union)
 {
-    unsigned n;
+    unsigned int n;
     StructDeclaration *decl;
 
     for (n = 0; n < n_structs; n++) {
@@ -416,14 +422,15 @@ static void register_struct(const char *str, CXCursor cursor,
                 // Fill in structs that were defined (empty) earlier, i.e.
                 // 'struct AVFilterPad;', followed by the full declaration
                 // 'struct AVFilterPad { ... };'
-                clang_visitChildren(cursor, fill_struct_members, (void *) n);
+                clang_visitChildren(cursor, fill_struct_members,
+                                    (void *)(uintptr_t)n);
             }
             return;
         }
     }
 
     if (n_structs == n_allocated_structs) {
-        unsigned num = n_allocated_structs + 16;
+        unsigned int num = n_allocated_structs + 16;
         void *mem = realloc(structs, sizeof(*structs) * num);
         if (!mem) {
             fprintf(stderr, "Out of memory while registering struct %s\n", str);
@@ -443,9 +450,11 @@ static void register_struct(const char *str, CXCursor cursor,
     decl->entries = NULL;
     decl->is_union = is_union;
 
-    clang_visitChildren(cursor, fill_struct_members, (void *) (n_structs - 1));
+    clang_visitChildren(cursor, fill_struct_members,
+    			(void *)(uintptr_t)(n_structs - 1));
 }
 
+/* */
 static int arithmetic_expression(int val1, const char *expr, int val2)
 {
     assert(expr[1] == 0 || expr[2] == 0);
@@ -486,9 +495,10 @@ static int arithmetic_expression(int val1, const char *expr, int val2)
     exit(1);
 }
 
+/* */
 static int find_enum_value(const char *str)
 {
-    unsigned n, m;
+    unsigned int n, m;
 
     for (n = 0; n < n_enums; n++) {
         for (m = 0; m < enums[n].n_entries; m++) {
@@ -506,6 +516,7 @@ typedef struct FillEnumMemberCache {
     char *op;
 } FillEnumMemberCache;
 
+/* */
 static enum CXChildVisitResult fill_enum_value(CXCursor cursor,
                                                CXCursor parent,
                                                CXClientData client_data)
@@ -720,33 +731,36 @@ static void register_typedef(const char *name,
     memcpy(&typedefs[n].cursor, &cursor, sizeof(cursor));
 }
 
-static unsigned get_token_offset(CXToken token)
+/* */
+static unsigned int get_token_offset(CXToken token)
 {
     CXSourceLocation l = clang_getTokenLocation(TU, token);
     CXFile file;
-    unsigned line, col, off;
+    unsigned int line, col, off;
 
     clang_getSpellingLocation(l, &file, &line, &col, &off);
 
     return off;
 }
 
-static unsigned find_struct_decl_idx_by_name(const char *name)
+/* */
+static unsigned int find_struct_decl_idx_by_name(const char *name)
 {
-    unsigned n;
+    unsigned int n;
 
     for (n = 0; n < n_structs; n++) {
         if (!strcmp(name, structs[n].name))
             return n;
     }
 
-    return (unsigned) -1;
+    return (unsigned int)-1;
 }
 
+/* */
 static void resolve_proxy(TypedefDeclaration *decl)
 {
-    if (decl->struct_decl_idx != (unsigned) -1 ||
-        decl->enum_decl_idx != (unsigned) -1)
+    if (decl->struct_decl_idx != (unsigned int)-1 ||
+        decl->enum_decl_idx != (unsigned int)-1)
         return;
 
     decl->struct_decl_idx = find_struct_decl_idx_for_type_name(decl->proxy);
@@ -756,7 +770,7 @@ static void resolve_proxy(TypedefDeclaration *decl)
 
 static TypedefDeclaration *find_typedef_decl_by_name(const char *name)
 {
-    unsigned n;
+    unsigned int n;
 
     for (n = 0; n < n_typedefs; n++) {
         if (!strcmp(name, typedefs[n].name)) {
@@ -768,7 +782,7 @@ static TypedefDeclaration *find_typedef_decl_by_name(const char *name)
     return NULL;
 }
 
-// FIXME this function has some duplicate functionality compared to
+// FIXME: this function has some duplicate functionality compared to
 // fill_struct_members() further up.
 static unsigned find_struct_decl_idx(const char *var, CXToken *tokens,
                                      unsigned n_tokens, unsigned *depth)
@@ -1128,7 +1142,7 @@ static void analyze_decl_context(CompoundLiteralList *l,
 {
     CursorRecursion *p = rec->parent;
 
-    // FIXME if parent.kind == CXCursor_CompoundStmt, simply go from here until
+    // FIXME: if parent.kind == CXCursor_CompoundStmt, simply go from here until
     // the end of that compound context.
     // in other cases (e.g. declaration inside a for/while), find the complete
     // context (e.g. before the while/for) and declare new context around that
@@ -1152,7 +1166,7 @@ static void get_comp_literal_type_info(StructArrayList *sal,
                                        CXToken *tokens, unsigned n_tokens,
                                        unsigned start, unsigned end)
 {
-    // FIXME also see find_struct_decl_idx()
+    // FIXME: also see find_struct_decl_idx()
     unsigned type_tok_idx = (unsigned) -1, array_tok_idx = (unsigned) -1,
              end_tok_idx = (unsigned) -1, n;
     char *type;
@@ -1939,9 +1953,9 @@ static void reorder_compound_literal_list(unsigned n)
     if (!n_comp_literal_lists)
         return;
 
-    // FIXME probably slow - quicksort?
+    // FIXME: probably slow - quicksort?
     for (; n < n_comp_literal_lists - 1; n++) {
-        unsigned l, lowest = n;
+        unsigned int l, lowest = n;
 
         // find the lowest
         for (l = n + 1; l < n_comp_literal_lists; l++) {
@@ -2046,8 +2060,8 @@ static void replace_comp_literal(CompoundLiteralList *l,
             get_token_position(tokens[*_n], lnum, cpos, &off);
             (*_n)--;
         } else if (l->context.start == l->cast_token.start) {
-            // FIXME duplicate of code in TYPE_CONST_DECL
-            unsigned off;
+            // FIXME: duplicate of code in TYPE_CONST_DECL
+            unsigned int off;
             char *tmp_var_name = l->data.t_c_d.tmp_var_name;
 
             // replace original CL with a reference to the
@@ -2112,8 +2126,8 @@ static void replace_comp_literal(CompoundLiteralList *l,
             (*_n)--;
             get_token_position(tokens[*_n], lnum, cpos, &off);
         } else {
-            // FIXME duplicate of code in TYPE_TEMP_ASSIGN
-            unsigned off;
+            // FIXME: duplicate of code in TYPE_TEMP_ASSIGN
+            unsigned int off;
             char *tmp_var_name = l->data.t_c_d.tmp_var_name;
 
             // replace original CL with a reference to the
@@ -2132,7 +2146,7 @@ static void replace_comp_literal(CompoundLiteralList *l,
 
             print_literal_text("{ ", lnum, cpos);
 
-            // FIXME it may be easier to replicate the variable declaration
+            // FIXME: it may be easier to replicate the variable declaration
             // and initialization here, and then to actually empty out the
             // original location where the variable initialization/declaration
             // happened
@@ -2598,6 +2612,7 @@ int convert(const char *infile, const char *outfile, int ms_compat)
     return 0;
 }
 
+/* */
 int main(int argc, char *argv[])
 {
     int arg = 1;
