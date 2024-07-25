@@ -9,9 +9,10 @@ OBJS = convert.o
 CC_REQUIRED=/opt/local/bin/clang-mp-18
 CC=@CC@
 LD=$(CC)
+LLVM_PREFIX=/opt/local/libexec/llvm-18
 AM_WARNFLAGS=-Wmissing-include-dirs @MAINT@ -Wc++-compat -Wwrite-strings
-AM_CFLAGS=-I/opt/local/libexec/llvm-18/include -g $(AM_WARNFLAGS)
-AM_LDFLAGS=-L/opt/local/libexec/llvm-18/lib -g
+AM_CFLAGS=-I$(LLVM_PREFIX)/include -g $(AM_WARNFLAGS)
+AM_LDFLAGS=-L$(LLVM_PREFIX)/lib -g -Wl,-rpath,$(LLVM_PREFIX)/lib
 LIBS=-lclang
 DISTCLEANFILES = *~ *.log
 
@@ -36,6 +37,8 @@ test3: c99conv$(EXT)
 	$(CC) $(CFLAGS) $(AM_CFLAGS) -E -o convert.prev.c convert.c
 	./c99conv convert.prev.c convert.post.c
 	diff -u convert.{prev,post}.c
+
+check-local: test1 test2 test3
 
 c99conv$(EXT): $(OBJS)
 	$(CC) -o $@ $< $(AM_LDFLAGS) $(LDFLAGS) $(LIBS)

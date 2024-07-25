@@ -12,3 +12,5 @@ c99wrap
 *.o
 Makefile
 *.exe
+unit.p*.c
+unit2.p*.c

@@ -7,5 +7,6 @@ build-aux/missing linguist-vendored
 build-aux/mkinstalldirs linguist-vendored
 config.h.in linguist-generated
 configure linguist-generated
+configure.scan linguist-generated
 m4/ax_check_gnu_make.m4 linguist-vendored
 Makefile.in linguist-generated

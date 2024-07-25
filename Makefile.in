@@ -291,9 +291,10 @@ EXT =
 OBJS = convert.o
 CC_REQUIRED = /opt/local/bin/clang-mp-18
 LD = $(CC)
+LLVM_PREFIX = /opt/local/libexec/llvm-18
 AM_WARNFLAGS = -Wmissing-include-dirs @MAINT@ -Wc++-compat -Wwrite-strings
-AM_CFLAGS = -I/opt/local/libexec/llvm-18/include -g $(AM_WARNFLAGS)
-AM_LDFLAGS = -L/opt/local/libexec/llvm-18/lib -g
+AM_CFLAGS = -I$(LLVM_PREFIX)/include -g $(AM_WARNFLAGS)
+AM_LDFLAGS = -L$(LLVM_PREFIX)/lib -g -Wl,-rpath,$(LLVM_PREFIX)/lib
 DISTCLEANFILES = *~ *.log
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -622,7 +623,7 @@ distcleancheck: distclean
 	       $(distcleancheck_listfiles) ; \
 	       exit 1; } >&2
 check-am: all-am
-	$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU
+	$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU check-local
 check: check-am
 all-am: Makefile config.h
 installdirs:
@@ -730,10 +731,10 @@ uninstall-am:
 .MAKE: all check-am install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--refresh check check-DEJAGNU \
-	check-am clean clean-cscope clean-generic clean-local cscope \
-	cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
-	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
-	dist-zstd distcheck distclean distclean-DEJAGNU \
+	check-am check-local clean clean-cscope clean-generic \
+	clean-local cscope cscopelist-am ctags ctags-am dist dist-all \
+	dist-bzip2 dist-gzip dist-lzip dist-shar dist-tarZ dist-xz \
+	dist-zip dist-zstd distcheck distclean distclean-DEJAGNU \
 	distclean-generic distclean-hdr distclean-local distclean-tags \
 	distcleancheck distdir distuninstallcheck dvi dvi-am html \
 	html-am info info-am install install-am install-data \
@@ -771,6 +772,8 @@ test3: c99conv$(EXT)
 	$(CC) $(CFLAGS) $(AM_CFLAGS) -E -o convert.prev.c convert.c
 	./c99conv convert.prev.c convert.post.c
 	diff -u convert.{prev,post}.c
+
+check-local: test1 test2 test3
 
 c99conv$(EXT): $(OBJS)
 	$(CC) -o $@ $< $(AM_LDFLAGS) $(LDFLAGS) $(LIBS)
